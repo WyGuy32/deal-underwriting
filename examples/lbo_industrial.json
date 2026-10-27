@@ -1,0 +1,20 @@
+{
+  "_comment": "Illustrative mid-market industrial services buyout. All figures in dollars.",
+  "ltm_revenue": 120000000,
+  "ebitda_margin": 0.18,
+  "entry_multiple": 9.0,
+  "exit_multiple": 9.0,
+  "revenue_growth": 0.06,
+  "margin_change_per_year": 0.005,
+  "senior_debt_multiple": 4.0,
+  "senior_rate": 0.085,
+  "senior_amortization": 0.01,
+  "sub_debt_multiple": 1.0,
+  "sub_rate": 0.115,
+  "transaction_fee_rate": 0.02,
+  "da_pct_revenue": 0.03,
+  "capex_pct_revenue": 0.035,
+  "nwc_pct_revenue": 0.10,
+  "tax_rate": 0.25,
+  "hold_years": 5
+}

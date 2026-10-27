@@ -1,0 +1,23 @@
+{
+  "_comment": "Illustrative duplex: two units at $1,500/mo, 25% down, 5-year hold.",
+  "purchase_price": 315000,
+  "closing_costs": 9000,
+  "rehab": 12000,
+  "monthly_rent": 3000,
+  "other_income_monthly": 100,
+  "vacancy_rate": 0.05,
+  "rent_growth": 0.03,
+  "property_tax_annual": 5200,
+  "insurance_annual": 1900,
+  "management_rate": 0.08,
+  "maintenance_rate": 0.05,
+  "capex_reserve_rate": 0.05,
+  "other_expenses_annual": 1200,
+  "expense_growth": 0.03,
+  "down_payment_rate": 0.25,
+  "interest_rate": 0.0675,
+  "amortization_years": 30,
+  "hold_years": 5,
+  "exit_cap_rate": 0.0725,
+  "selling_cost_rate": 0.06
+}

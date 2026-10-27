@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deal Underwriting</title>
+<meta name="description" content="Rental property and leveraged buyout underwriting in the browser: pro forma, debt, IRR, sensitivity tables and a value-creation bridge.">
+<style>
+:root {
+  --bg: #f6f5f1;
+  --panel: #ffffff;
+  --ink: #1b1d21;
+  --muted: #646a73;
+  --line: #e2e0d9;
+  --accent: #1f5f4a;
+  --accent-soft: #e3efe9;
+  --neg: #b0372b;
+  --pos: #1f7a4f;
+  --shadow: 0 1px 2px rgba(20, 20, 20, .05), 0 4px 16px rgba(20, 20, 20, .04);
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121416; --panel: #1a1d20; --ink: #e9e7e2; --muted: #9aa0a8; --line: #2c3035;
+    --accent: #6cc4a1; --accent-soft: #1f3330; --neg: #ef7f72; --pos: #6cc4a1;
+    --shadow: none; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121416; --panel: #1a1d20; --ink: #e9e7e2; --muted: #9aa0a8; --line: #2c3035;
+  --accent: #6cc4a1; --accent-soft: #1f3330; --neg: #ef7f72; --pos: #6cc4a1;
+  --shadow: none; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 32px 16px 64px; }
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+h1 { font-size: 28px; line-height: 1.15; margin: 0 0 6px; letter-spacing: -.01em; }
+.sub { color: var(--muted); margin: 0; max-width: 60ch; }
+.links a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.links a:hover { text-decoration: underline; }
+.tabs { display: inline-flex; gap: 4px; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 20px; }
+.tabs button {
+  font: inherit; font-weight: 600; border: 0; background: none; color: var(--muted);
+  padding: 8px 16px; border-radius: 7px; cursor: pointer;
+}
+.tabs button[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); }
+.grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 18px; }
+aside.card { position: sticky; top: 16px; }
+@media (max-width: 860px) { aside.card { position: static; } }
+fieldset { border: 0; padding: 0; margin: 0 0 14px; }
+legend { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+label { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: var(--muted); }
+input {
+  font: 14px var(--mono); color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; width: 100%;
+}
+input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.results { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 560px) { .kpis { grid-template-columns: 1fr 1fr; } }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; box-shadow: var(--shadow); }
+.kpi .k { font-size: 12px; color: var(--muted); }
+.kpi .v { font: 600 22px/1.2 var(--mono); margin-top: 4px; }
+.kpi .n { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.kpi.hero { background: var(--accent-soft); border-color: transparent; }
+.kpi.hero .v { color: var(--accent); }
+h2 { font-size: 15px; margin: 0 0 4px; }
+.card > p.note { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font: 13px var(--mono); }
+th, td { padding: 6px 10px; text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+thead th { color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line); }
+tbody tr + tr td { border-top: 1px solid var(--line); }
+td.neg { color: var(--neg); }
+.heat td { text-align: center; border: 2px solid var(--panel); border-radius: 4px; }
+.heat td.base { outline: 2px solid var(--ink); outline-offset: -2px; font-weight: 700; }
+.heat th { text-align: center; }
+.bridge { display: flex; flex-direction: column; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: 150px 1fr 120px; gap: 10px; align-items: center; font-size: 13px; }
+.bar-track { height: 18px; position: relative; }
+.bar { position: absolute; top: 0; height: 100%; border-radius: 3px; background: var(--accent); }
+.bar.neg { background: var(--neg); }
+.bar-row .amt { font-family: var(--mono); text-align: right; }
+.bar-row .amt { white-space: nowrap; }
+@media (max-width: 520px) { .bar-row { grid-template-columns: 100px 1fr 112px; font-size: 12px; } }
+.err { color: var(--neg); font-weight: 600; }
+footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Deal Underwriting</h1>
+      <p class="sub">Underwrite a rental property or a leveraged buyout. Change any input and the pro forma, returns, and sensitivity tables update instantly. It uses the same math as the tested Python library.</p>
+    </div>
+    <div class="links"><a href="https://github.com/WyGuy32/deal-underwriting">Source on GitHub →</a></div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="rental">Rental property</button>
+    <button role="tab" aria-selected="false" data-tab="lbo">Leveraged buyout</button>
+  </div>
+
+  <!-- RENTAL -->
+  <section id="tab-rental" class="grid">
+    <aside class="card" id="rental-form">
+      <fieldset><legend>Acquisition</legend><div class="fields">
+        <label>Purchase price $<input data-k="purchase_price" value="315000"></label>
+        <label>Closing costs $<input data-k="closing_costs" value="9000"></label>
+        <label>Rehab $<input data-k="rehab" value="12000"></label>
+        <label>Down payment %<input data-k="down_payment_rate" data-pct value="25"></label>
+        <label>Interest rate %<input data-k="interest_rate" data-pct value="6.75"></label>
+        <label>Amortization (yrs)<input data-k="amortization_years" value="30"></label>
+      </div></fieldset>
+      <fieldset><legend>Income</legend><div class="fields">
+        <label>Monthly rent $<input data-k="monthly_rent" value="3000"></label>
+        <label>Other income /mo $<input data-k="other_income_monthly" value="100"></label>
+        <label>Vacancy %<input data-k="vacancy_rate" data-pct value="5"></label>
+        <label>Rent growth %<input data-k="rent_growth" data-pct value="3"></label>
+      </div></fieldset>
+      <fieldset><legend>Expenses</legend><div class="fields">
+        <label>Property tax /yr $<input data-k="property_tax_annual" value="5200"></label>
+        <label>Insurance /yr $<input data-k="insurance_annual" value="1900"></label>
+        <label>Other /yr $<input data-k="other_expenses_annual" value="1200"></label>
+        <label>Expense growth %<input data-k="expense_growth" data-pct value="3"></label>
+        <label>Management % EGI<input data-k="management_rate" data-pct value="8"></label>
+        <label>Maintenance % EGI<input data-k="maintenance_rate" data-pct value="5"></label>
+        <label>CapEx reserve % EGI<input data-k="capex_reserve_rate" data-pct value="5"></label>
+      </div></fieldset>
+      <fieldset><legend>Exit</legend><div class="fields">
+        <label>Hold (yrs)<input data-k="hold_years" value="5"></label>
+        <label>Exit cap rate %<input data-k="exit_cap_rate" data-pct value="7.25"></label>
+        <label>Selling costs %<input data-k="selling_cost_rate" data-pct value="6"></label>
+      </div></fieldset>
+    </aside>
+    <div class="results" id="rental-out"></div>
+  </section>
+
+  <!-- LBO -->
+  <section id="tab-lbo" class="grid" hidden>
+    <aside class="card" id="lbo-form">
+      <fieldset><legend>Company</legend><div class="fields">
+        <label>LTM revenue $M<input data-k="ltm_revenue" data-scale="1e6" value="120"></label>
+        <label>EBITDA margin %<input data-k="ebitda_margin" data-pct value="18"></label>
+        <label>Revenue growth %<input data-k="revenue_growth" data-pct value="6"></label>
+        <label>Margin change /yr %<input data-k="margin_change_per_year" data-pct value="0.5"></label>
+        <label>D&amp;A % revenue<input data-k="da_pct_revenue" data-pct value="3"></label>
+        <label>CapEx % revenue<input data-k="capex_pct_revenue" data-pct value="3.5"></label>
+        <label>NWC % revenue<input data-k="nwc_pct_revenue" data-pct value="10"></label>
+        <label>Tax rate %<input data-k="tax_rate" data-pct value="25"></label>
+      </div></fieldset>
+      <fieldset><legend>Transaction</legend><div class="fields">
+        <label>Entry multiple x<input data-k="entry_multiple" value="9"></label>
+        <label>Exit multiple x<input data-k="exit_multiple" value="9"></label>
+        <label>Fees % EV<input data-k="transaction_fee_rate" data-pct value="2"></label>
+        <label>Hold (yrs)<input data-k="hold_years" value="5"></label>
+      </div></fieldset>
+      <fieldset><legend>Debt</legend><div class="fields">
+        <label>Senior x EBITDA<input data-k="senior_debt_multiple" value="4"></label>
+        <label>Senior rate %<input data-k="senior_rate" data-pct value="8.5"></label>
+        <label>Senior amort. %/yr<input data-k="senior_amortization" data-pct value="1"></label>
+        <label>Sub debt x EBITDA<input data-k="sub_debt_multiple" value="1"></label>
+        <label>Sub debt rate %<input data-k="sub_rate" data-pct value="11.5"></label>
+      </div></fieldset>
+    </aside>
+    <div class="results" id="lbo-out"></div>
+  </section>
+
+  <footer>Illustrative defaults only, not investment advice. Conventions: reserves sit below NOI; the sale is priced on forward NOI; LBO interest accrues on beginning balances with a 100% cash sweep on senior debt.</footer>
+</div>
+
+<script>
+// ---------- finance (mirrors underwrite/finance.py) ----------
+const payment = (P, rate, years) => {
+  const n = years * 12, r = rate / 12;
+  return r === 0 ? P / n : P * r / (1 - Math.pow(1 + r, -n));
+};
+const remainingBalance = (P, rate, years, k) => {
+  const n = years * 12, r = rate / 12;
+  k = Math.min(Math.max(k, 0), n);
+  if (r === 0) return P * (1 - k / n);
+  const g = Math.pow(1 + r, k);
+  return Math.max(P * g - payment(P, rate, years) * (g - 1) / r, 0);
+};
+const npv = (rate, cfs) => cfs.reduce((s, cf, t) => s + cf / Math.pow(1 + rate, t), 0);
+function irr(cfs) {
+  if (!cfs.some(c => c < 0) || !cfs.some(c => c > 0)) return null;
+  let lo = -0.9999, hi = 1, fLo = npv(lo, cfs), fHi = npv(hi, cfs);
+  while (fLo * fHi > 0 && hi < 1e6) { hi *= 2; fHi = npv(hi, cfs); }
+  if (fLo * fHi > 0) return null;
+  for (let i = 0; i < 500; i++) {
+    const mid = (lo + hi) / 2, f = npv(mid, cfs);
+    if (Math.abs(f) < 1e-10 || (hi - lo) / 2 < 1e-10) return mid;
+    if (fLo * f < 0) hi = mid; else { lo = mid; fLo = f; }
+  }
+  return (lo + hi) / 2;
+}
+const equityMultiple = cfs => cfs.filter(c => c > 0).reduce((a, b) => a + b, 0) / -cfs.filter(c => c < 0).reduce((a, b) => a + b, 0);
+
+// ---------- rental (mirrors underwrite/rental.py) ----------
+function operatingYear(d, y) {
+  const rf = Math.pow(1 + d.rent_growth, y - 1), ef = Math.pow(1 + d.expense_growth, y - 1);
+  const gpi = 12 * (d.monthly_rent + d.other_income_monthly) * rf;
+  const vacancy = gpi * d.vacancy_rate, egi = gpi - vacancy;
+  const opex = (d.property_tax_annual + d.insurance_annual + d.other_expenses_annual) * ef
+    + egi * (d.management_rate + d.maintenance_rate);
+  return { gpi, vacancy, egi, opex, noi: egi - opex };
+}
+function underwriteRental(d) {
+  if (!(d.purchase_price > 0)) throw new Error("Purchase price must be positive.");
+  if (!(d.down_payment_rate > 0 && d.down_payment_rate <= 1)) throw new Error("Down payment must be between 0% and 100%.");
+  if (!(d.hold_years >= 1)) throw new Error("Hold must be at least 1 year.");
+  if (!(d.exit_cap_rate > 0)) throw new Error("Exit cap rate must be positive.");
+  const loan = d.purchase_price * (1 - d.down_payment_rate);
+  const equity = d.purchase_price - loan + d.closing_costs + d.rehab;
+  const ds = loan > 0 ? 12 * payment(loan, d.interest_rate, d.amortization_years) : 0;
+  const years = [];
+  for (let y = 1; y <= d.hold_years; y++) {
+    const o = operatingYear(d, y), reserve = o.egi * d.capex_reserve_rate;
+    years.push({ year: y, ...o, reserve, ds, cf: o.noi - reserve - ds, dscr: ds ? o.noi / ds : null,
+      balance: loan > 0 ? remainingBalance(loan, d.interest_rate, d.amortization_years, 12 * y) : 0 });
+  }
+  const sale = operatingYear(d, d.hold_years + 1).noi / d.exit_cap_rate;
+  const sellCosts = sale * d.selling_cost_rate, payoff = years[years.length - 1].balance;
+  const net = sale - sellCosts - payoff;
+  const cfs = [-equity, ...years.map(y => y.cf)];
+  cfs[cfs.length - 1] += net;
+  const y1 = years[0];
+  return { d, loan, equity, ds, years, sale, sellCosts, payoff, net, cfs,
+    cap: y1.noi / d.purchase_price, coc: y1.cf / equity, dscr: y1.dscr,
+    beo: (y1.opex + y1.reserve + ds) / y1.gpi, irr: irr(cfs), em: equityMultiple(cfs) };
+}
+
+// ---------- LBO (mirrors underwrite/lbo.py) ----------
+function runLBO(d) {
+  const e0 = d.ltm_revenue * d.ebitda_margin, ev0 = d.entry_multiple * e0, fees = ev0 * d.transaction_fee_rate;
+  const senior0 = d.senior_debt_multiple * e0, sub0 = d.sub_debt_multiple * e0;
+  const equity = ev0 + fees - senior0 - sub0;
+  if (!(d.ltm_revenue > 0 && d.ebitda_margin > 0)) throw new Error("Revenue and margin must be positive.");
+  if (!(d.hold_years >= 1)) throw new Error("Hold must be at least 1 year.");
+  if (equity <= 0) throw new Error("Debt exceeds the purchase price; sponsor equity must be positive.");
+  let senior = senior0, sub = sub0, cash = 0, rev = d.ltm_revenue, margin = d.ebitda_margin;
+  const years = [];
+  for (let y = 1; y <= d.hold_years; y++) {
+    const prior = rev;
+    rev *= 1 + d.revenue_growth; margin += d.margin_change_per_year;
+    const ebitda = rev * margin, interest = senior * d.senior_rate + sub * d.sub_rate;
+    const pretax = ebitda - rev * d.da_pct_revenue - interest;
+    const taxes = Math.max(pretax, 0) * d.tax_rate, ni = pretax - taxes;
+    const fcf = ni + rev * d.da_pct_revenue - rev * d.capex_pct_revenue - (rev - prior) * d.nwc_pct_revenue;
+    const mandatory = Math.min(senior, senior0 * d.senior_amortization);
+    const sweep = Math.min(senior - mandatory, Math.max(fcf - mandatory, 0));
+    senior -= mandatory + sweep; cash += fcf - mandatory - sweep;
+    years.push({ year: y, rev, ebitda, interest, fcf, senior, cash, lev: (senior + sub - cash) / ebitda });
+  }
+  const eN = years[years.length - 1].ebitda, evN = d.exit_multiple * eN, ndN = senior + sub - cash, eqN = evN - ndN;
+  const cfs = [-equity, ...Array(d.hold_years - 1).fill(0), eqN];
+  return { d, e0, ev0, fees, debt0: senior0 + sub0, equity, years, eN, evN, ndN, eqN, moic: eqN / equity, irr: irr(cfs),
+    bridge: [["EBITDA growth", (eN - e0) * d.entry_multiple], ["Multiple expansion", (d.exit_multiple - d.entry_multiple) * eN],
+      ["Debt paydown", senior0 + sub0 - ndN], ["Fees", -fees]] };
+}
+
+// ---------- formatting ----------
+const money = x => (x < 0 ? "-$" : "$") + Math.abs(x).toLocaleString("en-US", { maximumFractionDigits: 0 });
+const mm = x => (x < 0 ? "-$" : "$") + (Math.abs(x) / 1e6).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "M";
+const pct = (x, dp = 1) => x == null || !isFinite(x) ? "n/a" : (x * 100).toFixed(dp) + "%";
+const mult = x => x == null || !isFinite(x) ? "n/a" : x.toFixed(2) + "x";
+const cls = x => x < 0 ? ' class="neg"' : "";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+const kpi = (k, v, n = "", hero = false) =>
+  `<div class="kpi${hero ? " hero" : ""}"><div class="k">${k}</div><div class="v">${v}</div>${n ? `<div class="n">${n}</div>` : ""}</div>`;
+
+function tableHTML(head, rows) {
+  return `<div class="scroll"><table><thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>${
+    rows.map(r => `<tr>${r.map(c => Array.isArray(c) ? `<td${cls(c[1])}>${c[0]}</td>` : `<td>${c}</td>`).join("")}</tr>`).join("")
+  }</tbody></table></div>`;
+}
+
+// IRR heat colour: red below 0%, neutral near 8%, green at 20%+.
+function heat(v) {
+  if (v == null) return "transparent";
+  const t = Math.max(-1, Math.min(1, (v - 0.08) / 0.12));
+  return t >= 0 ? `rgba(31,140,90,${0.12 + 0.5 * t})` : `rgba(200,60,45,${0.12 + 0.5 * -t})`;
+}
+function heatTable(rowLabel, colLabel, rows, cols, fmtR, fmtC, cell) {
+  const body = rows.map((rv, i) => `<tr><th>${fmtR(rv)}</th>${cols.map((cv, j) => {
+    let v; try { v = cell(rv, cv); } catch { v = null; }
+    return `<td class="${i === 2 && j === 2 ? "base" : ""}" style="background:${heat(v)}">${pct(v)}</td>`;
+  }).join("")}</tr>`).join("");
+  return `<div class="scroll"><table class="heat"><thead><tr><th>${rowLabel} ↓ / ${colLabel} →</th>${cols.map(c => `<th>${fmtC(c)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+const around = (c, step) => [-2, -1, 0, 1, 2].map(k => +(c + k * step).toFixed(10));
+
+// ---------- wiring ----------
+function readForm(form) {
+  const d = {};
+  form.querySelectorAll("input").forEach(i => {
+    let v = parseFloat(i.value);
+    if (!isFinite(v)) v = 0;
+    if (i.hasAttribute("data-pct")) v /= 100;
+    if (i.dataset.scale) v *= +i.dataset.scale;
+    d[i.dataset.k] = v;
+  });
+  if ("hold_years" in d) d.hold_years = Math.round(d.hold_years);
+  if ("amortization_years" in d) d.amortization_years = Math.max(1, Math.round(d.amortization_years));
+  return d;
+}
+
+function renderRental() {
+  const out = document.getElementById("rental-out");
+  const d = readForm(document.getElementById("rental-form"));
+  let r;
+  try { r = underwriteRental(d); } catch (e) { out.innerHTML = `<div class="card err">${esc(e.message)}</div>`; return; }
+  const step = Math.round(d.purchase_price * 0.05 / 1000) * 1000 || 1000;
+  out.innerHTML = `
+    <div class="kpis">
+      ${kpi("Levered IRR", pct(r.irr), `${d.hold_years}-year hold`, true)}
+      ${kpi("Equity multiple", mult(r.em), money(r.equity) + " invested")}
+      ${kpi("Going-in cap rate", pct(r.cap, 2), "Year-1 NOI / price")}
+      ${kpi("Cash-on-cash (Y1)", pct(r.coc), money(r.years[0].cf) + " / yr")}
+      ${kpi("DSCR (Y1)", mult(r.dscr), r.dscr != null && r.dscr < 1.25 ? "Below typical 1.25x lender minimum" : "NOI / debt service")}
+      ${kpi("Break-even occupancy", pct(r.beo), "Costs + debt / gross income")}
+    </div>
+    <div class="card"><h2>Annual pro forma</h2><p class="note">Loan ${money(r.loan)} at ${pct(d.interest_rate, 2)}; ${money(r.ds)} annual debt service.</p>
+      ${tableHTML(["Year", "Gross income", "Vacancy", "OpEx", "NOI", "Reserves", "Debt service", "Cash flow", "DSCR", "Loan bal."],
+        r.years.map(y => [y.year, money(y.gpi), money(-y.vacancy), money(y.opex), money(y.noi), money(y.reserve), money(y.ds), [money(y.cf), y.cf], mult(y.dscr), money(y.balance)]))}
+    </div>
+    <div class="card"><h2>Exit</h2><p class="note">Sold at a ${pct(d.exit_cap_rate, 2)} cap on year-${d.hold_years + 1} NOI.</p>
+      ${tableHTML(["", "Amount"], [["Sale price", money(r.sale)], ["Selling costs", [money(-r.sellCosts), -1]], ["Loan payoff", [money(-r.payoff), -1]], ["Net proceeds", [money(r.net), r.net]]])}
+    </div>
+    <div class="card"><h2>Sensitivity: levered IRR</h2><p class="note">How returns move with what you pay and what the next buyer pays. Outlined cell = current inputs.</p>
+      ${heatTable("Price", "Exit cap", around(d.purchase_price, step), around(d.exit_cap_rate, 0.0025), money, c => pct(c, 2),
+        (p, c) => underwriteRental({ ...d, purchase_price: p, exit_cap_rate: c }).irr)}
+    </div>`;
+}
+
+function renderLBO() {
+  const out = document.getElementById("lbo-out");
+  const d = readForm(document.getElementById("lbo-form"));
+  let r;
+  try { r = runLBO(d); } catch (e) { out.innerHTML = `<div class="card err">${esc(e.message)}</div>`; return; }
+  const gain = r.eqN - r.equity;
+  // Bars share one axis: the zero line sits where the largest negative bar ends.
+  const maxPos = Math.max(0, ...r.bridge.map(b => b[1])), maxNeg = Math.max(0, ...r.bridge.map(b => -b[1]));
+  const range = maxPos + maxNeg || 1, zero = maxNeg / range * 100;
+  out.innerHTML = `
+    <div class="kpis">
+      ${kpi("Sponsor IRR", pct(r.irr), `${d.hold_years}-year hold`, true)}
+      ${kpi("MOIC", mult(r.moic), mm(r.equity) + " → " + mm(r.eqN))}
+      ${kpi("Entry EV", mm(r.ev0), d.entry_multiple.toFixed(1) + "x " + mm(r.e0) + " EBITDA")}
+      ${kpi("Entry leverage", mult(r.debt0 / r.e0), mm(r.debt0) + " debt")}
+      ${kpi("Exit leverage", mult(r.ndN / r.eN), "Net debt / EBITDA")}
+    </div>
+    <div class="card"><h2>Operating model and debt schedule</h2><p class="note">Free cash flow sweeps the senior loan; cash builds once it is repaid.</p>
+      ${tableHTML(["Year", "Revenue", "EBITDA", "Interest", "FCF", "Senior debt", "Cash", "Net lev."],
+        r.years.map(y => [y.year, mm(y.rev), mm(y.ebitda), mm(y.interest), [mm(y.fcf), y.fcf], mm(y.senior), [mm(y.cash), y.cash], mult(y.lev)]))}
+    </div>
+    <div class="card"><h2>Value creation bridge</h2><p class="note">Where the ${mm(gain)} equity gain came from. The parts sum exactly to the gain.</p>
+      <div class="bridge">${r.bridge.map(([k, v]) => {
+        const w = Math.abs(v) / range * 100, left = v >= 0 ? zero : zero - w;
+        return `<div class="bar-row"><span>${k}</span><div class="bar-track"><div class="bar${v < 0 ? " neg" : ""}" style="left:${left}%;width:${w}%"></div></div><span class="amt">${mm(v)}${gain ? " · " + pct(v / gain, 0) : ""}</span></div>`;
+      }).join("")}</div>
+    </div>
+    <div class="card"><h2>Sensitivity: sponsor IRR</h2><p class="note">Entry multiple against exit multiple. Outlined cell = current inputs.</p>
+      ${heatTable("Entry", "Exit", around(d.entry_multiple, 0.5), around(d.exit_multiple, 0.5), mult, mult,
+        (en, ex) => runLBO({ ...d, entry_multiple: en, exit_multiple: ex }).irr)}
+    </div>`;
+}
+
+document.getElementById("rental-form").addEventListener("input", renderRental);
+document.getElementById("lbo-form").addEventListener("input", renderLBO);
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
+  document.getElementById("tab-rental").hidden = b.dataset.tab !== "rental";
+  document.getElementById("tab-lbo").hidden = b.dataset.tab !== "lbo";
+  try { localStorage.setItem("tab", b.dataset.tab); } catch {}
+}));
+renderRental();
+renderLBO();
+try { const t = localStorage.getItem("tab"); if (t) document.querySelector(`.tabs button[data-tab="${t}"]`)?.click(); } catch {}
+</script>
+</body>
+</html>
